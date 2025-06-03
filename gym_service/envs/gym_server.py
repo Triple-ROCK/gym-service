@@ -1,6 +1,7 @@
 import socket
 import pickle
 import threading
+import importlib
 import gymnasium as gym
 from .utils import serialize_space
     
@@ -23,6 +24,15 @@ class SocketGymServer:
                     payload = request.get("payload", {})
 
                     if rtype == "make":
+                        env_type = payload.get("env_type", None)
+                        if env_type is not None:
+                            package_name = f"gym_{env_type}"
+                            try:
+                                importlib.import_module(package_name)
+                            except ModuleNotFoundError as e:
+                                print(f"{package_name} is not installed. Please install it with `pip install 'lerobot[{cfg.type}]'`")
+                                raise e
+                            
                         env_id = payload["env_id"]
                         kwargs = payload.get("kwargs", {})
                         env = gym.make(env_id, **kwargs)
@@ -32,7 +42,8 @@ class SocketGymServer:
                         response = {
                             "status": "ok",
                             "observation_space": serialize_space(obs_space),
-                            "action_space": serialize_space(act_space)
+                            "action_space": serialize_space(act_space),
+                            "render_fps": env.metadata.get("render_fps", None)
                         }
                     elif env is None:
                         response = {"status": "error", "message": "Environment not initialized. Send 'make' first."}

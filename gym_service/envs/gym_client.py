@@ -6,13 +6,15 @@ from .utils import deserialize_space
 
 
 class SocketGymClient(gym.Env):
-    metadata = {"render_modes": ["rgb_array"]}
+    metadata = {"render_modes": ["rgb_array"]}  # only RGB array rendering supported
 
-    def __init__(self, env_id="CartPole-v1", env_kwargs=None, host='127.0.0.1', port=65432):
+    def __init__(self, env_id="CartPole-v1", env_type=None, 
+                       host='127.0.0.1', port=65432, **env_kwargs):
         super().__init__()
         self.host = host
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print("Connecting to server at {}:{}".format(host, port))
         self.sock.connect((host, port))
 
         env_kwargs = env_kwargs or {}
@@ -21,12 +23,15 @@ class SocketGymClient(gym.Env):
             "type": "make",
             "payload": {
                 "env_id": env_id,
+                "env_type": env_type,
                 "kwargs": env_kwargs
             }
         })
 
         self.observation_space = deserialize_space(response["observation_space"])
         self.action_space = deserialize_space(response["action_space"])
+        self.metadata = SocketGymClient.metadata.copy()
+        self.metadata["render_fps"] = response["render_fps"]  # compatible with lerobot
 
     def _send_request(self, request):
         data = pickle.dumps(request)

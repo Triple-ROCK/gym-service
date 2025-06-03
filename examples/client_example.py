@@ -2,7 +2,7 @@ from gym_service import SocketGymClient
 
 if __name__ == "__main__":
     print("[Example Client] Starting client...")
-    env = SocketGymClient(host="localhost", port=2333)
+    env = SocketGymClient(env_id="CartPole-v1", host="localhost", port=2333)
 
     obs, _ = env.reset()
     print("Reset observation:", obs)

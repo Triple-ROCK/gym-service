@@ -1,11 +1,11 @@
 # gym_service
-A socket-based bridge between reinforcement learning algorithms and Gymnasium simulation environments.
+A socket-based bridge between reinforcement(Imitation) learning algorithms and Gymnasium simulation environments.
 
 ## 🧠 Motivation
 In many real-world reinforcement learning (RL) or imitation learning(IL) projects, the simulation environment (e.g., PyBullet, Isaac Gym, Mujoco, etc.) and the RL algorithm often require different or conflicting Python dependencies. This creates problems such as:
 
-- Environment needs a specific version of python, which clashes with algorithm requirements.
-- You may need to  **integrate simulation benchmarks from papers** into your own training pipeline for comparison
+- Environment needs a specific version of python, which clashes with the training pipeline.
+- **integrating simulation benchmarks from papers** into your own pipeline for comparison becomes cumbersome.
 - Deployment or development across multiple machines is hindered by dependency entanglement.
 
 To solve these issues, gym_service provides a Client-Server architecture where:
@@ -20,7 +20,8 @@ To solve these issues, gym_service provides a Client-Server architecture where:
 - Minimal dependencies: only requires gymnasium and numpy.
 - Supports RGB image rendering (render(mode="rgb_array")) with raw numpy array output.
 - Fully compatible with Gymnasium environments, 
-- Supports step/reset/render/close API calls just like native Gymnasium environments.
+- Supports the full standard Gym API: reset, step, render, close.
+- Support vectorized env using separate threads
 
 ## 🛠️ Installation
 Install the package in editable mode so you can develop/test easily:
@@ -49,10 +50,11 @@ if __name__ == "__main__":
 
 ```python
 from gym_service import SocketGymClient
+import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     print("[Example Client] Starting client...")
-    env = SocketGymClient(host="localhost", port=2333)
+    env = SocketGymClient(env_id="CartPole-v1", host="localhost", port=2333)
 
     obs, _ = env.reset()
     print("Reset observation:", obs)
@@ -61,13 +63,38 @@ if __name__ == "__main__":
         action = env.action_space.sample()
         obs, reward, terminated, truncated, info = env.step(action)
         print(f"Action: {action}, Obs: {obs}, Reward: {reward}, Terminated: {terminated}")
-        if terminated:
-            break
+        
+        img = env.render()
+        plt.imshow(img)
+        plt.axis('off')
+        plt.show()
     env.close()
 ```
 
-🔒 License
+**Or you can simply register the client as a gym env**
+```python
+from gymnasium.envs.registration import register
+import gymnasium as gym
+
+register(
+    id="gym_service/PushT-v0",
+    entry_point="gym_service.envs:SocketGymClient",
+    max_episode_steps=300,
+    nondeterministic=True,
+    kwargs={"env_id": "gym_pusht/PushT-v0"},
+)
+...
+gym.make("gym_service/PushT-v0")
+```
+
+## 🤝 Compatible with Lerobot
+The package is fully compatible with lerobot, See [lerobot_compatible.md](./lerobot_compatible.md)
+
+## 🧪 TODO
+1. multiprocessing` + `Queue/Pipe` to seperate python GIL
+
+## 🔒 License
 MIT License © Lei Ouyang
 
-📧 Contact
+## 📧 Contact
 Feel free to reach out via email: hitlearner@gmail.com
