@@ -1,5 +1,6 @@
 from gym_service import SocketGymClient
 
+
 if __name__ == "__main__":
     print("[Example Client] Starting client...")
     env = SocketGymClient(env_id="CartPole-v1", host="localhost", port=2333)

@@ -2,6 +2,7 @@ import socket
 import pickle
 import threading
 import importlib
+import traceback
 import gymnasium as gym
 from .utils import serialize_space
     
@@ -16,7 +17,7 @@ class SocketGymServer:
         with conn:
             while True:
                 data = self._recv_msg(conn)
-                if data is None:
+                if data is None:  # an elegant way for socket to close
                     break
                 try:
                     request = pickle.loads(data)
@@ -30,7 +31,7 @@ class SocketGymServer:
                             try:
                                 importlib.import_module(package_name)
                             except ModuleNotFoundError as e:
-                                print(f"{package_name} is not installed. Please install it with `pip install 'lerobot[{cfg.type}]'`")
+                                print(f"{package_name} is not installed.")
                                 raise e
                             
                         env_id = payload["env_id"]
@@ -70,7 +71,11 @@ class SocketGymServer:
                     else:
                         response = {"status": "error", "message": "Invalid type"}
                 except Exception as e:
-                    response = {"status": "error", "message": str(e)}
+                    response = {
+                        "status": "error", 
+                        "message": str(e),
+                        "traceback": traceback.format_exc()
+                    }
 
                 self._send_msg(conn, pickle.dumps(response))
 

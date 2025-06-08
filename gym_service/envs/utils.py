@@ -43,11 +43,12 @@ def serialize_space(space):
 def deserialize_space(space_dict):
     space_type = space_dict["type"]
     if space_type == "Box":
+        dtype = np.dtype(space_dict["dtype"])
         return gym.spaces.Box(
-            low=np.array(space_dict["low"]),
-            high=np.array(space_dict["high"]),
+            low=np.array(space_dict["low"], dtype=dtype),
+            high=np.array(space_dict["high"], dtype=dtype),
             shape=tuple(space_dict["shape"]),
-            dtype=np.dtype(space_dict["dtype"])
+            dtype=dtype
         )
     elif space_type == "Discrete":
         return gym.spaces.Discrete(n=space_dict["n"])

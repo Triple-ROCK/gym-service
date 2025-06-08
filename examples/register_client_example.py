@@ -1,12 +1,20 @@
 import gymnasium as gym
 import gym_service
+import argparse
+
+
+args = argparse.ArgumentParser()
+args.add_argument("--env_id", "-e", type=str, default="PushT-v0")
+args.add_argument("--host", type=str, default="localhost")
+args.add_argument("--port", type=int, default=2333)
+args = args.parse_args()
 
 
 env_kwargs = {
-    "host": "localhost",
-    "port": 2333,
+    "host": args.host,
+    "port": args.port,
 }
-env = gym.make("gym_service/PushT-v0", **env_kwargs)
+env = gym.make(f"gym_service/{args.env_id}", **env_kwargs)
 
 obs, _ = env.reset()
 print("Reset observation:", obs)

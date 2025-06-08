@@ -46,6 +46,7 @@ class SocketGymClient(gym.Env):
 
         response = pickle.loads(data)
         if response['status'] != 'ok':
+            print("\n[Trackback from worker]:\n", response['traceback'], "\n")
             raise RuntimeError(response.get('message', 'Unknown error'))
         
         return response
