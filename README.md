@@ -91,7 +91,8 @@ gym.make("gym_service/PushT-v0")
 The package is fully compatible with lerobot, See [lerobot_compatible.md](./lerobot_compatible.md)
 
 ## 🧪 TODO
-1. multiprocessing` + `Queue/Pipe` to seperate python GIL
+1. improve image rendering efficiency
+2. improve pickele usage
 
 ## 🔒 License
 MIT License © Lei Ouyang

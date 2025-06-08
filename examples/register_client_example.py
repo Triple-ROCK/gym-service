@@ -1,6 +1,7 @@
 import gymnasium as gym
 import gym_service
 import argparse
+import matplotlib.pyplot as plt
 
 
 args = argparse.ArgumentParser()
@@ -22,6 +23,9 @@ for _ in range(5):
     action = env.action_space.sample()
     obs, reward, terminated, truncated, info = env.step(action)
     print(f"Action: {action}, Obs: {obs}, Reward: {reward}, Terminated: {terminated}")
+    img = env.render()
+    plt.imshow(img)
+    plt.show()
     if terminated:
         break
 env.close()

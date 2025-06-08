@@ -4,7 +4,9 @@ import threading
 import importlib
 import traceback
 import gymnasium as gym
+from multiprocessing import Process, Pipe
 from .utils import serialize_space
+from .worker import env_worker
     
 
 class SocketGymServer:
@@ -13,71 +15,36 @@ class SocketGymServer:
         self.port = port
 
     def handle_client(self, conn):
-        env = None
+        parent_conn, child_conn = Pipe()
+        worker = Process(target=env_worker, args=(child_conn,))
+        worker.start()
+
         with conn:
-            while True:
-                data = self._recv_msg(conn)
-                if data is None:  # an elegant way for socket to close
-                    break
-                try:
+            try:
+                while True:
+                    data = self._recv_msg(conn)
+                    if data is None:  # an elegant way for socket to close
+                        break
+
                     request = pickle.loads(data)
-                    rtype = request.get("type")
-                    payload = request.get("payload", {})
+                    parent_conn.send(request)
+                    response = parent_conn.recv()
+                    self._send_msg(conn, pickle.dumps(response))
+                    if response["status"] == "error":
+                        break  # break the while loop when the child process errors
 
-                    if rtype == "make":
-                        env_type = payload.get("env_type", None)
-                        if env_type is not None:
-                            package_name = f"gym_{env_type}"
-                            try:
-                                importlib.import_module(package_name)
-                            except ModuleNotFoundError as e:
-                                print(f"{package_name} is not installed.")
-                                raise e
-                            
-                        env_id = payload["env_id"]
-                        kwargs = payload.get("kwargs", {})
-                        env = gym.make(env_id, **kwargs)
-                        obs_space = env.observation_space
-                        act_space = env.action_space
-
-                        response = {
-                            "status": "ok",
-                            "observation_space": serialize_space(obs_space),
-                            "action_space": serialize_space(act_space),
-                            "render_fps": env.metadata.get("render_fps", None)
-                        }
-                    elif env is None:
-                        response = {"status": "error", "message": "Environment not initialized. Send 'make' first."}
-                    elif rtype == "reset":
-                        obs, info = env.reset()
-                        response = {"status": "ok", "observation": obs, "info": info}
-                    elif rtype == "step":
-                        action = payload['action']
-                        obs, reward, terminated, truncated, info = env.step(action)
-                        response = {
-                            "status": "ok",
-                            "observation": obs,
-                            "reward": reward,
-                            "terminated": terminated,
-                            "truncated": truncated,
-                            "info": info
-                        }
-                    elif rtype == "render":
-                        img = env.render()
-                        response = {
-                            "status": "ok",
-                            "image": img
-                        }
-                    else:
-                        response = {"status": "error", "message": "Invalid type"}
-                except Exception as e:
-                    response = {
-                        "status": "error", 
-                        "message": str(e),
-                        "traceback": traceback.format_exc()
-                    }
-
+            except Exception as e:
+                response = {"status": "error", "message": "Server error: " + str(e) + "\n", "traceback": traceback.format_exc()}
                 self._send_msg(conn, pickle.dumps(response))
+                
+        if worker.is_alive():
+            try:
+                parent_conn.send(None)  # notify the child process to exit
+            except (BrokenPipeError, EOFError):
+                pass
+        worker.join(timeout=2.0)
+        parent_conn.close()
+        child_conn.close()
 
     def _send_msg(self, conn, data_bytes):
         msg = len(data_bytes).to_bytes(4, 'big') + data_bytes
@@ -106,8 +73,8 @@ class SocketGymServer:
             s.listen()
             print(f"[Server] Listening on {self.host}:{self.port}")
             while True:
-                conn, _ = s.accept()
-                print(f"[Server] Got a request {conn}")
+                conn, addr = s.accept()
+                print(f"[Server] Connected by {addr}")
                 threading.Thread(target=self.handle_client, args=(conn,), daemon=True).start()
 
 

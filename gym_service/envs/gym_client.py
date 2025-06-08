@@ -45,7 +45,7 @@ class SocketGymClient(gym.Env):
         data = self._recvall(msglen)
 
         response = pickle.loads(data)
-        if response['status'] != 'ok':
+        if response['status'] == 'error':
             print("\n[Trackback from worker]:\n", response['traceback'], "\n")
             raise RuntimeError(response.get('message', 'Unknown error'))
         
@@ -81,7 +81,12 @@ class SocketGymClient(gym.Env):
         return response["image"]
 
     def close(self):
-        self.sock.close()
+        try:
+            self._send_request({"type": "close", "payload": {}})
+        except Exception:
+            pass  # allow close to succeed even if server is down
+        finally:
+            self.sock.close()
 
 
 if __name__ == "__main__":
